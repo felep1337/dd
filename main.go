@@ -98,29 +98,12 @@ func main() {
 	}
 
 	buf := make([]byte, opts.blocksize)
-	//limit
+
 	limit := opts.Limit
-	var cnt uint
-	bs := opts.blocksize
-	//Запись в файл
+
+	reader := io.LimitReader(fileFrom, int64(limit))
 	for {
-		cnt += bs
-		if cnt > limit {
-			limBuf := make([]byte, limit%bs)
-			_, err = fileFrom.Read(limBuf)
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				_, _ = fmt.Fprintln(os.Stderr, "cannot read file:", err)
-			}
-			_, err := fileTo.Write(limBuf)
-			if err != nil {
-				_, _ = fmt.Fprintln(os.Stderr, "can not write to file:", err)
-			}
-			break
-		}
-		_, err = fileFrom.Read(buf)
+		_, err = reader.Read(buf)
 		if err != nil {
 			if err == io.EOF {
 				break
