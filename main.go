@@ -81,19 +81,26 @@ func main() {
 		}
 	}(fileTo)
 
-	buf := make([]byte, opts.blocksize)
-
-	bs := opts.blocksize
+	//offset
 	offset := opts.Offset
-	var cnt uint
 
-	flags := false
-	if cnt-offset > offset {
-		flags = true
+	fi, err := fileFrom.Stat()
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "cannot accuses file info:", err)
 	}
 
+	if offset > 0 {
+		if int64(offset) > fi.Size() {
+			err := errors.New("offset is greater than file length")
+			_, _ = fmt.Fprintln(os.Stderr, "offset error:", err)
+		}
+		_, err = fileFrom.Read(make([]byte, offset))
+	}
+
+	buf := make([]byte, opts.blocksize)
+
+	//Запись в файл
 	for {
-		cnt += bs
 		_, err = fileFrom.Read(buf)
 		if err != nil {
 			if err == io.EOF {
@@ -101,18 +108,9 @@ func main() {
 			}
 			_, _ = fmt.Fprintln(os.Stderr, "cannot read file:", err)
 		}
-
-		if !flags {
-			_, err := fileTo.Write(buf)
-			if err != nil {
-				_, _ = fmt.Fprintln(os.Stderr, "can not write to file:", err)
-			}
-		} else if cnt > offset {
-			flags = false
-			_, err := fileTo.Write(buf[offset-cnt+bs:])
-			if err != nil {
-				_, _ = fmt.Fprintln(os.Stderr, "can not write to file:", err)
-			}
+		_, err := fileTo.Write(buf)
+		if err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, "can not write to file:", err)
 		}
 		fmt.Println(string(buf))
 	}
