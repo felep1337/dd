@@ -13,7 +13,7 @@ type Options struct {
 	From      string
 	To        string
 	Offset    uint
-	Limit     int
+	Limit     uint
 	blocksize uint
 	conv      string
 }
@@ -25,7 +25,7 @@ func ParseFlags() (*Options, error) {
 	flag.StringVar(&opts.From, "from", "", "file to read. by default - stdin")
 	flag.StringVar(&opts.To, "to", "", "file to write. by default - stdout")
 	flag.UintVar(&opts.Offset, "offset", 0, "Number of bytes to skip before copying")
-	flag.IntVar(&opts.Limit, "limit", -1, "Max bytes to read (-1 for all)")
+	flag.UintVar(&opts.Limit, "limit", 0, "Max bytes to read (0 for all)")
 	flag.UintVar(&opts.blocksize, "blocksize", 4096, "Block size for reading/writing")
 	flag.StringVar(&opts.conv, "conv", "", "upper_case, lower_case, trim_spaces")
 
@@ -98,9 +98,28 @@ func main() {
 	}
 
 	buf := make([]byte, opts.blocksize)
-
+	//limit
+	limit := opts.Limit
+	var cnt uint
+	bs := opts.blocksize
 	//Запись в файл
 	for {
+		cnt += bs
+		if cnt > limit {
+			limBuf := make([]byte, limit%bs)
+			_, err = fileFrom.Read(limBuf)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				_, _ = fmt.Fprintln(os.Stderr, "cannot read file:", err)
+			}
+			_, err := fileTo.Write(limBuf)
+			if err != nil {
+				_, _ = fmt.Fprintln(os.Stderr, "can not write to file:", err)
+			}
+			break
+		}
 		_, err = fileFrom.Read(buf)
 		if err != nil {
 			if err == io.EOF {
