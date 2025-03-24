@@ -61,7 +61,8 @@ func main() {
 
 	fileFrom, err := os.OpenFile(opts.From, os.O_RDONLY, 0644)
 	if err != nil {
-		fmt.Println("can not open file:", err)
+		_, _ = fmt.Fprintln(os.Stderr, "can not open file:", err)
+		os.Exit(1)
 	}
 	defer func(file *os.File) {
 		err := file.Close()
@@ -71,7 +72,8 @@ func main() {
 
 	fileTo, err := os.OpenFile(opts.To, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		fmt.Println("can not create/open file:", err)
+		_, _ = fmt.Fprintln(os.Stderr, "can not open/create file:", err)
+		os.Exit(1)
 	}
 	defer func(file *os.File) {
 		err := file.Close()
@@ -80,17 +82,38 @@ func main() {
 	}(fileTo)
 
 	buf := make([]byte, opts.blocksize)
+
+	bs := opts.blocksize
+	offset := opts.Offset
+	var cnt uint
+
+	flags := false
+	if cnt-offset > offset {
+		flags = true
+	}
+
 	for {
+		cnt += bs
 		_, err = fileFrom.Read(buf)
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
-			fmt.Println("can not read file:", err)
+			_, _ = fmt.Fprintln(os.Stderr, "cannot read file:", err)
 		}
-		_, err := fileTo.Write(buf)
-		if err != nil {
-			fmt.Println("can not write to file:", err)
+
+		if !flags {
+			_, err := fileTo.Write(buf)
+			if err != nil {
+				_, _ = fmt.Fprintln(os.Stderr, "can not write to file:", err)
+			}
+		} else if cnt > offset {
+			flags = false
+			_, err := fileTo.Write(buf[offset-cnt+bs:])
+			if err != nil {
+				_, _ = fmt.Fprintln(os.Stderr, "can not write to file:", err)
+			}
 		}
+		fmt.Println(string(buf))
 	}
 }
