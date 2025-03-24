@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -18,6 +19,7 @@ type Options struct {
 }
 
 func ParseFlags() (*Options, error) {
+
 	var opts Options
 
 	flag.StringVar(&opts.From, "from", "", "file to read. by default - stdin")
@@ -48,7 +50,6 @@ func ParseFlags() (*Options, error) {
 		return nil, errors.New("cannot use both upper_case and lower_case")
 	}
 	return &opts, nil
-
 }
 
 func main() {
@@ -58,5 +59,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(*opts)
+	fileFrom, err := os.OpenFile(opts.From, os.O_RDONLY, 0644)
+	if err != nil {
+		fmt.Println("can not open file:", err)
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+		}
+	}(fileFrom)
+
+	fileTo, err := os.OpenFile(opts.To, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		fmt.Println("can not create/open file:", err)
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+		}
+	}(fileTo)
+
+	buf := make([]byte, opts.blocksize)
+	for {
+		_, err = fileFrom.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Println("can not read file:", err)
+		}
+		_, err := fileTo.Write(buf)
+		if err != nil {
+			fmt.Println("can not write to file:", err)
+		}
+	}
 }
